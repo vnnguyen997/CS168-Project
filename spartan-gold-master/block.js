@@ -1,8 +1,12 @@
 "use strict";
 
 const Blockchain = require('./blockchain.js');
+const MerkleTree = require('./merkle.js').MerkleTree;
 
 const utils = require('./utils.js');
+
+// Set a fixed block size
+const MAX_BLOCK_SIZE = 5; 
 
 /**
  * A block is a collection of transactions, with a hash connecting it
@@ -37,7 +41,10 @@ module.exports = class Block {
     }
 
     // Storing transactions in a Map to preserve key order.
-    this.transactions = new Map();
+    // this.transactions = new Map();
+
+    // Instead of storing the transactions in a map we will use a Merkle tree
+    this.merkleTransactions = new MerkleTree(MAX_BLOCK_SIZE)
 
     // Adding toJSON methods for transactions and balances, which help with
     // serialization.
@@ -143,7 +150,8 @@ module.exports = class Block {
       o.balances = Array.from(this.balances.entries());
     } else {
       // Other blocks must specify transactions and proof details.
-      o.transactions = Array.from(this.transactions.entries());
+      // o.transactions = Array.from(this.transactions.entries());
+      o.merkleTransactions = this.merkleTransactions;
       o.prevBlockHash = this.prevBlockHash;
       o.proof = this.proof;
       o.rewardAddr = this.rewardAddr;
@@ -180,7 +188,7 @@ module.exports = class Block {
    * @returns {Boolean} - True if the transaction was added successfully.
    */
   addTransaction(tx, client) {
-    if (this.transactions.get(tx.id)) {
+    if (this.merkleTransactions.get(tx.id)) {
       if (client) client.log(`Duplicate transaction ${tx.id}.`);
       return false;
     } else if (tx.sig === undefined) {
@@ -192,7 +200,7 @@ module.exports = class Block {
     } else if (!tx.sufficientFunds(this)) {
       if (client) client.log(`Insufficient gold for transaction ${tx.id}.`);
       return false;
-    }
+    } 
 
     // Checking and updating nonce value.
     // This portion prevents replay attacks.
@@ -209,7 +217,8 @@ module.exports = class Block {
     }
 
     // Adding the transaction to the block
-    this.transactions.set(tx.id, tx);
+    // this.transactions.set(tx.id, tx);
+    this.merkleTransactions.set(tx.id, tx);
 
     // Taking gold from the sender
     let senderBalance = this.balanceOf(tx.from);
@@ -245,8 +254,11 @@ module.exports = class Block {
     if (prevBlock.rewardAddr) this.balances.set(prevBlock.rewardAddr, winnerBalance + prevBlock.totalRewards());
 
     // Re-adding all transactions.
-    let txs = this.transactions;
-    this.transactions = new Map();
+    // let txs = this.transactions;
+    let txs = this.merkleTransactions;
+
+    // this.transactions = new Map();
+    this.merkleTransactions = new MerkleTree(MAX_BLOCK_SIZE);
     for (let tx of txs.values()) {
       let success = this.addTransaction(tx);
       if (!success) return false;
@@ -293,6 +305,6 @@ module.exports = class Block {
    * @returns {boolean} - True if the transaction is contained in this block.
    */
   contains(tx) {
-    return this.transactions.has(tx.id);
+    return this.merkleTransactions.has(tx.id);
   }
 };

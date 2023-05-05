@@ -33,69 +33,90 @@ class MerkleTree {
     }
   }
 
-  constructor(leaves) {
-    if (leaves.length === 0) {
-      throw new Error('Cannot create Merkle tree with no leaves');
+  constructor(transactions) {
+    // Actual transactions
+    this.transactions = [];
+
+    // Transaction hashes
+    this.hashes = [];
+
+    // hash-to-index Lookup table
+    this.lookup = {};
+
+    // We want to maintain a balanced tree, so we may need to pad
+    // out the last few elements.
+    let numBalancedTree = this.constructor.calculateSize(transactions.length);
+
+    // Hashes of transactions start in the middle of the array.
+    let firstTrans = Math.floor(numBalancedTree / 2);
+
+    for (let i=firstTrans; i<numBalancedTree; i++) {
+      let tNum = i - firstTrans;
+
+      // If we have less than a power of 2 elements,
+      // we pad out the transactions and arrays with the last element
+      let v = tNum<transactions.length ? transactions[tNum].toString() : this.transactions[tNum-1];
+      let h = utils.hash(v);
+
+      this.transactions[tNum] = v;
+      this.hashes[i] = h;
+      this.lookup[h] = i;
     }
 
-    this.levels = [];
-    this.levels.push(leaves);
-
-    while (this.levels[this.levels.length - 1].length > 1) {
-      const level = [];
-      const levelNodes = this.levels[this.levels.length - 1];
-
-      for (let i = 0; i < levelNodes.length; i += 2) {
-        const left = levelNodes[i];
-        const right = i + 1 < levelNodes.length ? levelNodes[i + 1] : left;
-        const node = hash(left + right);
-        level.push(node);
-      }
-
-      this.levels.push(level);
+    // Completing inner nodes of Merkle tree
+    for (let i=firstTrans+1; i<this.hashes.length; i+=2) {
+      this.constructor.hashToRoot(this.hashes, i);
     }
   }
 
-  root() {
-    return this.levels[this.levels.length - 1][0];
+  // Returns the Merkle root
+  get root() {
+    return this.hashes[0];
   }
 
-  path(index) {
-    if (index < 0 || index >= this.levels[0].length) {
-      throw new Error('Index out of bounds');
+  getPath(transaction) {
+    let h = utils.hash(transaction);
+    let i = this.lookup[h];
+    let path = { txInd: i, nodes: [] };
+
+    while (i > 0) {
+      let sibling = i % 2 === 0 ? i - 1 : i + 1;
+      path.nodes.push({ pos: sibling, hash: this.hashes[sibling] });
+      i = Math.floor((i - 1) / 2);
     }
 
-    const path = [];
-    let left = index;
-
-    for (let i = 0; i < this.levels.length - 1; i++) {
-      const levelNodes = this.levels[i];
-      const right = left % 2 === 0 ? left + 1 : left - 1;
-      path.push({ side: left % 2 === 0 ? 'right' : 'left', hash: levelNodes[right] });
-      left = Math.floor(left / 2);
-    }
+    //
+    // **YOUR CODE HERE**
+    //
+    // Starting at i, build up a path to the root, containing ONLY the nodes
+    // needed to reconstruct the Merkle root.  Include their position in the
+    // array so that a user who knows only the path and the Merkle root can
+    // verify the path.
 
     return path;
   }
 
-  verify(index, value, root) {
-    const path = this.path(index);
-    let hash = value;
+  // Return true if the tx matches the path.
+  verify(tx, path) {
+    let i = path.txInd;
+    let h = utils.hash(tx);
 
-    for (let i = 0; i < path.length; i++) {
-      const siblingHash = path[i].hash;
-      const side = path[i].side;
-
-      if (side === 'left') {
-        hash = hash + siblingHash;
-      } else {
-        hash = siblingHash + hash;
+    for (let node of path.nodes) {
+        if (i % 2 === 0) {
+          h = utils.hash(node.hash + ',' + h);
+        } else {
+          h = utils.hash(h + ',' + node.hash);
+        }
+        i = Math.floor((i - 1) / 2);
       }
-
-      hash = hash(hash);
-    }
-
-    return hash === root;
+ 
+      return h === this.root;
+    //
+    // **YOUR CODE HERE**
+    //
+    // starting at i, hash the appropriate nodes and verify that their hashes
+    // match their parent nodes, until finally hitting the Merkle root.
+    // If the Merkle root matches the path, return true.
   }
 
   // Returns a boolean indicating whether this node is part
