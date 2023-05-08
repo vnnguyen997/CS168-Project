@@ -59,8 +59,15 @@ minnie.initialize();
 mickey.initialize();
 
 // Alice transfers some money to Bob.
-console.log(`Alice is transferring 40 gold to ${bob.address}`);
-alice.postTransaction([{ amount: 40, address: bob.address }]);
+for (let i = 0; i <= 2; i++) {
+  console.log(`Alice is transferring ${i} gold to ${bob.address}`);
+  alice.postTransaction([{ amount: i, address: bob.address }]);
+}
+
+for (let i = 0; i <= 4; i++) {
+  console.log(`Bob is transferring ${i} gold to ${alice.address}`);
+  bob.postTransaction([{ amount: i, address: alice.address }]);
+}
 
 setTimeout(() => {
   console.log();
@@ -93,5 +100,6 @@ setTimeout(() => {
   console.log("Final balances (Donald's perspective):");
   showBalances(donald);
 
+  
   process.exit(0);
-}, 20000);
+}, 60000);

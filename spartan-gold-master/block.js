@@ -6,10 +6,8 @@ const utils = require('./utils.js');
 
 // 10 seconds
 const DESIRED_BLOCK_TIME = 10000; 
-
-// max 5 transactions
-const MAX_BLOCK_SIZE = 5; 
-
+const MAX_TRANSACTIONS_PER_BLOCK = 3;
+ 
 /**
  * A block is a collection of transactions, with a hash connecting it
  * to a previous block.
@@ -190,7 +188,11 @@ module.exports = class Block {
    * @returns {Boolean} - True if the transaction was added successfully.
    */
   addTransaction(tx, client) {
-    if (this.transactions.get(tx.id)) {
+    // Check if the block has reached the maximum number of transactions
+    if (this.transactions.size >= MAX_TRANSACTIONS_PER_BLOCK) {
+      if (client) client.log(`Maximum number of ${MAX_TRANSACTIONS_PER_BLOCK} transactions reached for block ${this.id}.`);
+      return false;
+    } else if (this.transactions.get(tx.id)) {
       if (client) client.log(`Duplicate transaction ${tx.id}.`);
       return false;
     } else if (tx.sig === undefined) {
@@ -203,6 +205,8 @@ module.exports = class Block {
       if (client) client.log(`Insufficient gold for transaction ${tx.id}.`);
       return false;
     }
+
+    // console.log("This is the transaction size!!! " + this.transactions.size);
 
     // Checking and updating nonce value.
     // This portion prevents replay attacks.
@@ -220,6 +224,9 @@ module.exports = class Block {
 
     // Adding the transaction to the block
     this.transactions.set(tx.id, tx);
+
+    // console.log("This is the transactions of the block " + tx.id + " to " + this.id.size);
+
 
     // Taking gold from the sender
     let senderBalance = this.balanceOf(tx.from);
@@ -257,6 +264,7 @@ module.exports = class Block {
     // Re-adding all transactions.
     let txs = this.transactions;
     this.transactions = new Map();
+    console.log("This is the transaction size!!! " + txs.size);
     for (let tx of txs.values()) {
       let success = this.addTransaction(tx);
       if (!success) return false;
@@ -318,6 +326,7 @@ module.exports = class Block {
    * @returns 
    */
   updateTarget(prevBlock) {
+    // Check to see if previous block is there
     if (!prevBlock) return;
     
     // Time difference between the current block and the previous block
