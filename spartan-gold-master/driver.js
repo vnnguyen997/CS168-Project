@@ -94,4 +94,4 @@ setTimeout(() => {
   showBalances(donald);
 
   process.exit(0);
-}, 5000);
+}, 20000);

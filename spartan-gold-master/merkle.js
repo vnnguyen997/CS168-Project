@@ -33,7 +33,11 @@ class MerkleTree {
     }
   }
 
-  constructor(transactions) {
+  constructor(maxTransactions) {
+
+    // Max number of transactions
+    this.maxTransactions = maxTransactions;
+
     // Actual transactions
     this.transactions = [];
 
@@ -43,9 +47,13 @@ class MerkleTree {
     // hash-to-index Lookup table
     this.lookup = {};
 
+    for (let i = 0; i < maxTransactions; i++) {
+      this.transactions.push("");
+    }
+
     // We want to maintain a balanced tree, so we may need to pad
     // out the last few elements.
-    let numBalancedTree = this.constructor.calculateSize(transactions.length);
+    let numBalancedTree = this.constructor.calculateSize(this.transactions.length);
 
     // Hashes of transactions start in the middle of the array.
     let firstTrans = Math.floor(numBalancedTree / 2);
@@ -55,7 +63,7 @@ class MerkleTree {
 
       // If we have less than a power of 2 elements,
       // we pad out the transactions and arrays with the last element
-      let v = tNum<transactions.length ? transactions[tNum].toString() : this.transactions[tNum-1];
+      let v = tNum<this.transactions.length ? this.transactions[tNum].toString() : this.transactions[tNum-1];
       let h = utils.hash(v);
 
       this.transactions[tNum] = v;
@@ -96,6 +104,61 @@ class MerkleTree {
     return path;
   }
 
+   // Check if the tree is full
+   isFull() {
+    return this.transactions.filter(tx => tx === "").length === 0;
+  }
+
+  // Adds a transaction to the Merkle tree and rebuilds it.
+  addMerkleTransaction(tx) {
+    // Check to see if it is already full.
+    if (this.isFull()) {
+      console.log("This block is full!");
+      return;
+    }
+    // Finds the next empty space and adds it.
+    for (let i = 0; i < this.maxTransactions; i++) {
+      if (this.transactions[i] === "") {
+        this.transactions[i] = tx;
+        this.buildTree(); // Rebuild the Merkle tree after adding a transaction
+        break;
+      }
+    }
+  }
+
+  // Rebuild the Merkle tree
+  buildTree() {
+    // Update the hashes and lookup tables
+    let numBalancedTree = this.constructor.calculateSize(this.transactions.length);
+    let firstTrans = Math.floor(numBalancedTree / 2);
+
+    for (let i = firstTrans; i < numBalancedTree; i++) {
+      let tNum = i - firstTrans;
+      let v = this.transactions[tNum].toString();
+      let h = utils.hash(v);
+
+      this.transactions[tNum] = v;
+      this.hashes[i] = h;
+      this.lookup[h] = i;
+    }
+
+    // Completing inner nodes of Merkle tree
+    for (let i = firstTrans + 1; i < this.hashes.length; i += 2) {
+      this.constructor.hashToRoot(this.hashes, i);
+    }
+  }
+
+  // 
+  getValues() {
+    let values = [];
+    for(let i = 0; i < this.transactions.length; i++) {
+      if(this.transactions[i] != " ") {
+        values.push(this.transactions[i]);
+      }
+    }
+    return values;
+  }
+
   // Return true if the tx matches the path.
   verify(tx, path) {
     let i = path.txInd;
@@ -118,6 +181,7 @@ class MerkleTree {
     // match their parent nodes, until finally hitting the Merkle root.
     // If the Merkle root matches the path, return true.
   }
+
 
   // Returns a boolean indicating whether this node is part
   // of the Merkle tree.

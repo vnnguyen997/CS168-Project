@@ -1,11 +1,13 @@
 "use strict";
 
 const Blockchain = require('./blockchain.js');
-const MerkleTree = require('./merkle.js').MerkleTree;
 
 const utils = require('./utils.js');
 
-// Set a fixed block size
+// 10 seconds
+const DESIRED_BLOCK_TIME = 10000; 
+
+// max 5 transactions
 const MAX_BLOCK_SIZE = 5; 
 
 /**
@@ -41,10 +43,7 @@ module.exports = class Block {
     }
 
     // Storing transactions in a Map to preserve key order.
-    // this.transactions = new Map();
-
-    // Instead of storing the transactions in a map we will use a Merkle tree
-    this.merkleTransactions = new MerkleTree(MAX_BLOCK_SIZE)
+    this.transactions = new Map();
 
     // Adding toJSON methods for transactions and balances, which help with
     // serialization.
@@ -63,6 +62,10 @@ module.exports = class Block {
     this.chainLength = prevBlock ? prevBlock.chainLength+1 : 0;
 
     this.timestamp = Date.now();
+
+    // Added a call to update the target
+    this.updateTarget(prevBlock);
+  
 
     // The address that will gain both the coinbase reward and transaction fees,
     // assuming that the block is accepted by the network.
@@ -150,8 +153,7 @@ module.exports = class Block {
       o.balances = Array.from(this.balances.entries());
     } else {
       // Other blocks must specify transactions and proof details.
-      // o.transactions = Array.from(this.transactions.entries());
-      o.merkleTransactions = this.merkleTransactions;
+      o.transactions = Array.from(this.transactions.entries());
       o.prevBlockHash = this.prevBlockHash;
       o.proof = this.proof;
       o.rewardAddr = this.rewardAddr;
@@ -188,7 +190,7 @@ module.exports = class Block {
    * @returns {Boolean} - True if the transaction was added successfully.
    */
   addTransaction(tx, client) {
-    if (this.merkleTransactions.get(tx.id)) {
+    if (this.transactions.get(tx.id)) {
       if (client) client.log(`Duplicate transaction ${tx.id}.`);
       return false;
     } else if (tx.sig === undefined) {
@@ -200,7 +202,7 @@ module.exports = class Block {
     } else if (!tx.sufficientFunds(this)) {
       if (client) client.log(`Insufficient gold for transaction ${tx.id}.`);
       return false;
-    } 
+    }
 
     // Checking and updating nonce value.
     // This portion prevents replay attacks.
@@ -217,8 +219,7 @@ module.exports = class Block {
     }
 
     // Adding the transaction to the block
-    // this.transactions.set(tx.id, tx);
-    this.merkleTransactions.set(tx.id, tx);
+    this.transactions.set(tx.id, tx);
 
     // Taking gold from the sender
     let senderBalance = this.balanceOf(tx.from);
@@ -254,11 +255,8 @@ module.exports = class Block {
     if (prevBlock.rewardAddr) this.balances.set(prevBlock.rewardAddr, winnerBalance + prevBlock.totalRewards());
 
     // Re-adding all transactions.
-    // let txs = this.transactions;
-    let txs = this.merkleTransactions;
-
-    // this.transactions = new Map();
-    this.merkleTransactions = new MerkleTree(MAX_BLOCK_SIZE);
+    let txs = this.transactions;
+    this.transactions = new Map();
     for (let tx of txs.values()) {
       let success = this.addTransaction(tx);
       if (!success) return false;
@@ -305,6 +303,37 @@ module.exports = class Block {
    * @returns {boolean} - True if the transaction is contained in this block.
    */
   contains(tx) {
-    return this.merkleTransactions.has(tx.id);
+    return this.transactions.has(tx.id);
+  }
+
+
+  /**
+   * This will change the difficulty of the Proof-of-Work target.
+   * Since we want the block time to take around 10 seconds, whenever
+   * the time difference between the current block and the previous block
+   * are more or less than 10 seconds, the target will be decreased or 
+   * increased respectively.
+   * 
+   * @param {*} prevBlock 
+   * @returns 
+   */
+  updateTarget(prevBlock) {
+    if (!prevBlock) return;
+    
+    // Time difference between the current block and the previous block
+    const timeDiff = this.timestamp - prevBlock.timestamp;
+
+    // If the time difference is less than 10 seconds, increase the difficulty by 50%
+    if (timeDiff < DESIRED_BLOCK_TIME) {
+
+      // Convert the target into a "Number", round down using Math.floor, create a BigInt to turn into target
+      this.target = BigInt(Math.floor(Number(this.target) * 0.5));
+
+    // if the time difference is greater than 10 seconds, decrease the difficulty by 50%
+    } else if (timeDiff > DESIRED_BLOCK_TIME) {
+
+      // Convert the target into a "Number", round down using Math.floor, create a BigInt to turn into target
+      this.target = BigInt(Math.floor(Number(this.target) * 1.5));
+    }
   }
 };
