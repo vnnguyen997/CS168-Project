@@ -4,9 +4,13 @@ const Blockchain = require('./blockchain.js');
 
 const utils = require('./utils.js');
 
+
+const MerkleTree = require('./merkletree.js');
+
+
 // 10 seconds
 const DESIRED_BLOCK_TIME = 10000; 
-const MAX_TRANSACTIONS_PER_BLOCK = 3;
+const MAX_TRANSACTIONS_PER_BLOCK = 8;
  
 /**
  * A block is a collection of transactions, with a hash connecting it
@@ -43,6 +47,9 @@ module.exports = class Block {
     // Storing transactions in a Map to preserve key order.
     this.transactions = new Map();
 
+    // add Merkle tree
+    this.merkleTreeTx = [];
+
     // Adding toJSON methods for transactions and balances, which help with
     // serialization.
     // this.transactions.toJSON = () => {
@@ -62,7 +69,7 @@ module.exports = class Block {
     this.timestamp = Date.now();
 
     // Added a call to update the target
-    this.updateTarget(prevBlock);
+    // this.updateTarget(prevBlock);
   
 
     // The address that will gain both the coinbase reward and transaction fees,
@@ -225,6 +232,9 @@ module.exports = class Block {
     // Adding the transaction to the block
     this.transactions.set(tx.id, tx);
 
+    // Adding the transaction to the merkle tree
+    this.merkleTreeTx.push(tx.id);
+
     // console.log("This is the transactions of the block " + tx.id + " to " + this.id.size);
 
 
@@ -264,11 +274,14 @@ module.exports = class Block {
     // Re-adding all transactions.
     let txs = this.transactions;
     this.transactions = new Map();
-    console.log("This is the transaction size!!! " + txs.size);
+    // console.log("This is the transaction size!!! " + txs.size);
     for (let tx of txs.values()) {
       let success = this.addTransaction(tx);
       if (!success) return false;
     }
+
+    // Rebuild the Merkle tree after re-adding transactions
+    this.buildTree();
 
     return true;
   }
@@ -344,5 +357,11 @@ module.exports = class Block {
       // Convert the target into a "Number", round down using Math.floor, create a BigInt to turn into target
       this.target = BigInt(Math.floor(Number(this.target) * 1.5));
     }
+  }
+
+  buildTree() {
+    this.merkleTree = new MerkleTree(this.transactions);
+    this.rootHash = this.merkleTree.getRootHash();
+    this.merkleTree.display();
   }
 };

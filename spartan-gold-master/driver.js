@@ -59,14 +59,9 @@ minnie.initialize();
 mickey.initialize();
 
 // Alice transfers some money to Bob.
-for (let i = 0; i <= 2; i++) {
+for (let i = 1; i <= 10; i++) {
   console.log(`Alice is transferring ${i} gold to ${bob.address}`);
   alice.postTransaction([{ amount: i, address: bob.address }]);
-}
-
-for (let i = 0; i <= 4; i++) {
-  console.log(`Bob is transferring ${i} gold to ${alice.address}`);
-  bob.postTransaction([{ amount: i, address: alice.address }]);
 }
 
 setTimeout(() => {
@@ -102,4 +97,4 @@ setTimeout(() => {
 
   
   process.exit(0);
-}, 60000);
+}, 30000);
