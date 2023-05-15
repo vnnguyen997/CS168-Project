@@ -235,6 +235,9 @@ module.exports = class Block {
     // Adding the transaction to the merkle tree
     this.merkleTreeTx.push(tx.id);
 
+    // build the tree
+    // this.buildTree();
+
     // console.log("This is the transactions of the block " + tx.id + " to " + this.id.size);
 
 
