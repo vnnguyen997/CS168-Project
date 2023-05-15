@@ -69,7 +69,7 @@ module.exports = class Block {
     this.timestamp = Date.now();
 
     // Added a call to update the target
-    // this.updateTarget(prevBlock);
+    this.updateTarget(prevBlock);
   
 
     // The address that will gain both the coinbase reward and transaction fees,
