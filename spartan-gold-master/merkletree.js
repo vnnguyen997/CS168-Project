@@ -1,3 +1,13 @@
+/**
+ * IMPLEMENTATION FOR MERKLE TREE FOR STORAGE
+ * 
+ * This merkle tree class is a simple implementation of merkle trees.
+ * This class simply takes an array of transactions as a parameter, passes it to buildTree
+ * which takes the transaction ids and hashes them repeatedly, building a merkle tree. 
+ * 
+ */
+
+
 const crypto = require('crypto');
 
 module.exports = class MerkleTree {

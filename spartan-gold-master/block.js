@@ -8,8 +8,16 @@ const utils = require('./utils.js');
 const MerkleTree = require('./merkletree.js');
 
 
-// 10 seconds
+/**
+ * Used for the implementation of variable proof-of-work
+ * Set the desired time between block creation to 10 seconds
+ */
 const DESIRED_BLOCK_TIME = 10000; 
+
+/**
+ * Used for the implementation of fixed block size. This is used to set
+ * the max amount of transactions that the merkle tree can use and store.
+ */
 const MAX_TRANSACTIONS_PER_BLOCK = 8;
  
 /**
@@ -47,7 +55,7 @@ module.exports = class Block {
     // Storing transactions in a Map to preserve key order.
     this.transactions = new Map();
 
-    // add Merkle tree
+    // Initialize an array to hold the transactions for the merkle tree
     this.merkleTreeTx = [];
 
     // Adding toJSON methods for transactions and balances, which help with
@@ -68,7 +76,10 @@ module.exports = class Block {
 
     this.timestamp = Date.now();
 
-    // Added a call to update the target
+    /**
+     * Added a call to updateTarget which will update the target
+     * each time a block is created. 
+     */
     this.updateTarget(prevBlock);
   
 
@@ -195,7 +206,10 @@ module.exports = class Block {
    * @returns {Boolean} - True if the transaction was added successfully.
    */
   addTransaction(tx, client) {
-    // Check if the block has reached the maximum number of transactions
+    /**
+     * Added a check constraint to check whether the list of transactions is greater
+     * than the max amount of transactions we want per block. 
+     */
     if (this.transactions.size >= MAX_TRANSACTIONS_PER_BLOCK) {
       if (client) client.log(`Maximum number of ${MAX_TRANSACTIONS_PER_BLOCK} transactions reached for block ${this.id}.`);
       return false;
@@ -283,7 +297,12 @@ module.exports = class Block {
       if (!success) return false;
     }
 
-    // Rebuild the Merkle tree after re-adding transactions
+    /**
+     * IMPLEMENTATION FOR MERKLE TREE STORAGE
+     * 
+     * Calls the build tree method after each rerun of the block
+     * 
+     */
     this.buildTree();
 
     return true;
@@ -332,6 +351,8 @@ module.exports = class Block {
 
 
   /**
+   * IMPLEMENTATION FOR VARIABLE PROOF-OF-WORK
+   * 
    * This will change the difficulty of the Proof-of-Work target.
    * Since we want the block time to take around 10 seconds, whenever
    * the time difference between the current block and the previous block
@@ -362,6 +383,15 @@ module.exports = class Block {
     }
   }
 
+
+  /**
+   * IMPLEMENTATION FOR MERKLE TREES FOR STORAGE
+   * 
+   * First initializes a new MerkleTree object using the array of transactions as 
+   * a parameter. MerkleTree Class will use this array to build the merkle tree
+   * with the transaction id hashes. Root hash is grabbed. MerkleTree is displayed 
+   * after it is built.
+   */
   buildTree() {
     this.merkleTree = new MerkleTree(this.transactions);
     this.rootHash = this.merkleTree.getRootHash();
